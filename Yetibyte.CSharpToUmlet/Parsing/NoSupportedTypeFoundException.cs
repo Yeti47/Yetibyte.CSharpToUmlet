@@ -4,9 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Yetibyte.CSharpToUmlet.Parsing
+namespace Yetibyte.CSharpToUmlet.Parsing;
+
+public class NoSupportedTypeFoundException(string message) : Exception(message)
 {
-    public class NoSupportedTypeFoundException(string message) : Exception(message)
-    {
-    }
 }

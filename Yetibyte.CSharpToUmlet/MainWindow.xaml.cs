@@ -11,20 +11,19 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Yetibyte.CSharpToUmlet.Parsing;
 
-namespace Yetibyte.CSharpToUmlet
+namespace Yetibyte.CSharpToUmlet;
+
+/// <summary>
+/// Interaction logic for MainWindow.xaml
+/// </summary>
+public partial class MainWindow : MetroWindow
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
-    public partial class MainWindow : MetroWindow
+    public MainViewModel ViewModel { get; }
+
+    public MainWindow()
     {
-        public MainViewModel ViewModel { get; }
+        InitializeComponent();
 
-        public MainWindow()
-        {
-            InitializeComponent();
-
-            DataContext = ViewModel = new MainViewModel(new SourceCodeParser());    
-        }
+        DataContext = ViewModel = new MainViewModel(new SourceCodeParser());    
     }
 }

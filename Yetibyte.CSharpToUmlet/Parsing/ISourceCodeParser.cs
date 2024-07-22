@@ -1,9 +1,8 @@
 ﻿using Yetibyte.CSharpToUmlet.UmletElements;
 
-namespace Yetibyte.CSharpToUmlet.Parsing
+namespace Yetibyte.CSharpToUmlet.Parsing;
+
+public interface ISourceCodeParser
 {
-    public interface ISourceCodeParser
-    {
-        IUmletElement Parse(string sourceCode);
-    }
+    IUmletElement Parse(string sourceCode);
 }

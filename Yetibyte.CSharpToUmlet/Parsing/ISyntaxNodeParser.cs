@@ -6,10 +6,9 @@ using System.Text;
 using System.Threading.Tasks;
 using Yetibyte.CSharpToUmlet.UmletElements;
 
-namespace Yetibyte.CSharpToUmlet.Parsing
+namespace Yetibyte.CSharpToUmlet.Parsing;
+
+public interface ISyntaxNodeParser
 {
-    public interface ISyntaxNodeParser
-    {
-        IUmletElement Parse(SyntaxNode node);
-    }
+    IUmletElement Parse(SyntaxNode node);
 }

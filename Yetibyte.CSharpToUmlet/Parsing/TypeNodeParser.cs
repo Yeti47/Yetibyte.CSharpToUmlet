@@ -9,117 +9,116 @@ using System.Threading.Tasks;
 using Yetibyte.CSharpToUmlet.UmletElements;
 using Yetibyte.CSharpToUmlet.UmletElements.Types;
 
-namespace Yetibyte.CSharpToUmlet.Parsing
+namespace Yetibyte.CSharpToUmlet.Parsing;
+
+public class TypeNodeParser : ISyntaxNodeParser
 {
-    public class TypeNodeParser : ISyntaxNodeParser
+    public IUmletElement Parse(SyntaxNode node)
     {
-        public IUmletElement Parse(SyntaxNode node)
+        if (node is not TypeDeclarationSyntax typeNode)
+            throw new ArgumentException("The given node is not a type declaration.", nameof(node));
+
+        string typeName = typeNode.Identifier.Text;
+
+        UmletTypeKind typeKind = typeNode switch
         {
-            if (node is not TypeDeclarationSyntax typeNode)
-                throw new ArgumentException("The given node is not a type declaration.", nameof(node));
-
-            string typeName = typeNode.Identifier.Text;
-
-            UmletTypeKind typeKind = typeNode switch
-            {
-                InterfaceDeclarationSyntax => UmletTypeKind.Interface,
-                StructDeclarationSyntax => UmletTypeKind.Struct,
-                RecordDeclarationSyntax recordNode when recordNode.ClassOrStructKeyword.Text == "struct" => UmletTypeKind.Struct,
-                _ => UmletTypeKind.Class
-            };
-
-            bool isRecord = typeNode is RecordDeclarationSyntax;
-            bool isAbstract = typeNode.HasModifier(RoslynHelper.Modifiers.ABSTRACT);
-            bool isSealed = typeNode.HasModifier(RoslynHelper.Modifiers.SEALED);
-            bool isStatic = typeNode.HasModifier(RoslynHelper.Modifiers.STATIC);
-
-            UmletAccessModifier accessModifier = RoslynHelper.GetAccessModifier(typeNode, UmletAccessModifier.Package);
-
-            var members = typeNode
-                .Members
-                .Where(m => m is FieldDeclarationSyntax 
-                              or PropertyDeclarationSyntax 
-                              or MethodDeclarationSyntax)
-                .Select(ParseMember);
-
-            var umletType = new UmletType(typeKind, typeName, members)
-            {
-                IsAbstract = isAbstract,
-                IsSealed = isSealed,
-                IsStatic = isStatic,
-                IsRecord = isRecord
-            };
-
-            return umletType;
-        }
-
-        private UmletMember ParseMember(MemberDeclarationSyntax memberNode) => memberNode switch
-        {
-            FieldDeclarationSyntax fieldNode => ParseField(fieldNode),
-            PropertyDeclarationSyntax propertyNode => ParseProperty(propertyNode),
-            MethodDeclarationSyntax methodNode => ParseMethod(methodNode),
-            _ => throw new Exception("Unsupported member node type.")
+            InterfaceDeclarationSyntax => UmletTypeKind.Interface,
+            StructDeclarationSyntax => UmletTypeKind.Struct,
+            RecordDeclarationSyntax recordNode when recordNode.ClassOrStructKeyword.Text == "struct" => UmletTypeKind.Struct,
+            _ => UmletTypeKind.Class
         };
 
-        private UmletProperty ParseField(FieldDeclarationSyntax fieldNode)
+        bool isRecord = typeNode is RecordDeclarationSyntax;
+        bool isAbstract = typeNode.HasModifier(RoslynHelper.Modifiers.Abstract);
+        bool isSealed = typeNode.HasModifier(RoslynHelper.Modifiers.Sealed);
+        bool isStatic = typeNode.HasModifier(RoslynHelper.Modifiers.Static);
+
+        UmletAccessModifier accessModifier = RoslynHelper.GetAccessModifier(typeNode, UmletAccessModifier.Package);
+
+        var members = typeNode
+            .Members
+            .Where(m => m is FieldDeclarationSyntax 
+                          or PropertyDeclarationSyntax 
+                          or MethodDeclarationSyntax)
+            .Select(ParseMember);
+
+        var umletType = new UmletType(typeKind, typeName, members)
         {
-            var variableNode = fieldNode.Declaration.Variables.First();
+            IsAbstract = isAbstract,
+            IsSealed = isSealed,
+            IsStatic = isStatic,
+            IsRecord = isRecord
+        };
 
-            string name = variableNode.Identifier.Text;
+        return umletType;
+    }
 
-            var accessModifier = RoslynHelper.GetAccessModifier(fieldNode, UmletAccessModifier.Private);
+    private UmletMember ParseMember(MemberDeclarationSyntax memberNode) => memberNode switch
+    {
+        FieldDeclarationSyntax fieldNode => ParseField(fieldNode),
+        PropertyDeclarationSyntax propertyNode => ParseProperty(propertyNode),
+        MethodDeclarationSyntax methodNode => ParseMethod(methodNode),
+        _ => throw new Exception("Unsupported member node type.")
+    };
 
-            bool isReadonly = fieldNode.HasModifier(RoslynHelper.Modifiers.READONLY);
+    private UmletProperty ParseField(FieldDeclarationSyntax fieldNode)
+    {
+        var variableNode = fieldNode.Declaration.Variables.First();
 
-            string type = fieldNode.Declaration.Type.GetTypeName();
+        string name = variableNode.Identifier.Text;
 
-            var property = new UmletProperty(accessModifier, name, type)
-            {
-                CanRead = true,
-                CanWrite = !isReadonly,
-                IsAbstract = fieldNode.HasModifier(RoslynHelper.Modifiers.ABSTRACT) || fieldNode.Parent is InterfaceDeclarationSyntax,
-                IsStatic = fieldNode.HasModifier(RoslynHelper.Modifiers.STATIC)
-            };
+        var accessModifier = RoslynHelper.GetAccessModifier(fieldNode, UmletAccessModifier.Private);
 
-            return property;
-        }
+        bool isReadonly = fieldNode.HasModifier(RoslynHelper.Modifiers.ReadOnly);
 
-        private UmletProperty ParseProperty(PropertyDeclarationSyntax propertyNode)
+        string type = fieldNode.Declaration.Type.GetTypeName();
+
+        var property = new UmletProperty(accessModifier, name, type)
         {
-            string name = propertyNode.Identifier.Text;
+            CanRead = true,
+            CanWrite = !isReadonly,
+            IsAbstract = fieldNode.HasModifier(RoslynHelper.Modifiers.Abstract) || fieldNode.Parent is InterfaceDeclarationSyntax,
+            IsStatic = fieldNode.HasModifier(RoslynHelper.Modifiers.Static)
+        };
 
-            var accessModifier = RoslynHelper.GetAccessModifier(propertyNode, propertyNode.Parent is InterfaceDeclarationSyntax ? UmletAccessModifier.Public : UmletAccessModifier.Private);
+        return property;
+    }
 
-            string type = propertyNode.Type.GetTypeName();
+    private UmletProperty ParseProperty(PropertyDeclarationSyntax propertyNode)
+    {
+        string name = propertyNode.Identifier.Text;
 
-            var property = new UmletProperty(accessModifier, name, type)
-            {
-                CanRead = propertyNode.HasAccessor(RoslynHelper.Accessors.GET),
-                CanWrite = propertyNode.HasAccessor(RoslynHelper.Accessors.SET),
-                IsAbstract = propertyNode.HasModifier(RoslynHelper.Modifiers.ABSTRACT) || propertyNode.Parent is InterfaceDeclarationSyntax,
-                IsStatic = propertyNode.HasModifier(RoslynHelper.Modifiers.STATIC),
-            };
+        var accessModifier = RoslynHelper.GetAccessModifier(propertyNode, propertyNode.Parent is InterfaceDeclarationSyntax ? UmletAccessModifier.Public : UmletAccessModifier.Private);
 
-            return property;
-        }
+        string type = propertyNode.Type.GetTypeName();
 
-        private UmletMethod ParseMethod(MethodDeclarationSyntax methodNode)
+        var property = new UmletProperty(accessModifier, name, type)
         {
-            var name = methodNode.Identifier.Text;
+            CanRead = propertyNode.HasAccessor(RoslynHelper.Accessors.Get),
+            CanWrite = propertyNode.HasAccessor(RoslynHelper.Accessors.Set),
+            IsAbstract = propertyNode.HasModifier(RoslynHelper.Modifiers.Abstract) || propertyNode.Parent is InterfaceDeclarationSyntax,
+            IsStatic = propertyNode.HasModifier(RoslynHelper.Modifiers.Static),
+        };
 
-            var accessModifier = RoslynHelper.GetAccessModifier(methodNode, methodNode.Parent is InterfaceDeclarationSyntax ? UmletAccessModifier.Public : UmletAccessModifier.Private);
+        return property;
+    }
 
-            string type = methodNode.ReturnType.GetTypeName();
+    private UmletMethod ParseMethod(MethodDeclarationSyntax methodNode)
+    {
+        var name = methodNode.Identifier.Text;
 
-            var parameters = methodNode.ParameterList.Parameters.Select(p => new UmletParameter(p.Identifier.Text, p.Type?.GetTypeName() ?? string.Empty));
+        var accessModifier = RoslynHelper.GetAccessModifier(methodNode, methodNode.Parent is InterfaceDeclarationSyntax ? UmletAccessModifier.Public : UmletAccessModifier.Private);
 
-            var method = new UmletMethod(accessModifier, name, type, parameters)
-            {
-                IsAbstract = methodNode.HasModifier(RoslynHelper.Modifiers.ABSTRACT) || methodNode.Parent is InterfaceDeclarationSyntax,
-                IsStatic = methodNode.HasModifier(RoslynHelper.Modifiers.STATIC),
-            };
+        string type = methodNode.ReturnType.GetTypeName();
 
-            return method;
-        }
+        var parameters = methodNode.ParameterList.Parameters.Select(p => new UmletParameter(p.Identifier.Text, p.Type?.GetTypeName() ?? string.Empty));
+
+        var method = new UmletMethod(accessModifier, name, type, parameters)
+        {
+            IsAbstract = methodNode.HasModifier(RoslynHelper.Modifiers.Abstract) || methodNode.Parent is InterfaceDeclarationSyntax,
+            IsStatic = methodNode.HasModifier(RoslynHelper.Modifiers.Static),
+        };
+
+        return method;
     }
 }
